@@ -1,86 +1,87 @@
 # DynamicViT with GGML
 
-C++17 CPU inference and ImageNet evaluation for the 384-dimensional DynamicViT
-model, using the GGML source in `ggml/` and an exported GGUF model.
+C++ CPU inference for DynamicViT-DeiT-S/0.7 using GGML.
 
-## Requirements
+The implementation includes GGUF model loading, ImageNet preprocessing,
+Vision Transformer blocks, DynamicViT token pruning, and top-1/top-5
+ImageNet evaluation. The implementation is validated against the official python implementation by Rao et. al (authors of DViT), and results matched.
 
-- A C++17 compiler (Apple Clang on macOS, or GCC/Clang on Linux).
-- CMake 3.16 or newer and a build tool such as Make.
-- The bundled `ggml/` and `third_party/` directories.
-- The exported model: `models/dynamic-vit_384_r0.7-f32.gguf`.
+## Setup
 
-Python and PyTorch are not required to build or run this evaluator. The commands
-below disable the Python parity tests and optional GPU backends for a CPU build.
-They do not access or modify `dynamicViTorignal[donotedit]`.
+Clone GGML into the `ggml/` directory. Follow ggml repo's instructions for that.
 
-## Compile
+Place `stb_image.h` in:
 
-Run from the root of this repository:
+```text
+third_party/stb_image.h
+```
+
+The expected GGUF model path is:
+
+```text
+models/dynamic-vit_384_r0.7-f32.gguf
+```
+
+The model file is not included in this repository. Please refer to the DViT paper and their repositary. 
+
+## Build
 
 ```sh
-cmake -S . -B build/cpu \
+cmake -S . -B build \
   -DCMAKE_BUILD_TYPE=Release \
   -DBUILD_TESTING=OFF \
   -DGGML_BUILD_TESTS=OFF \
   -DGGML_BUILD_EXAMPLES=OFF \
-  -DGGML_METAL=OFF \
-  -DGGML_BLAS=OFF \
-  -DGGML_OPENMP=OFF \
-  -DGGML_CCACHE=OFF
+  -DGGML_METAL=OFF
 
-cmake --build build/cpu --target dynvit-eval -j 4
+cmake --build build --target dynvit-eval -j
 ```
 
-The executable is `build/cpu/dynvit-eval`. After editing C++ files, rerun the
-second command to rebuild. CMake also writes `build/cpu/compile_commands.json`
-for editors that need the compiler flags and include paths.
+The evaluator executable will be:
 
-## Evaluate the image subset
+```text
+build/dynvit-eval
+```
 
-The dataset must use numeric, **zero-based** ImageNet class directories:
+## Dataset Layout
+
+The ImageNet validation subset should use numeric class directories:
 
 ```text
 ILSVRC2012_img_val_subset/
-  0/
-    image.JPEG
-  1/
-    image.JPEG
-  ...
-  999/
-    image.JPEG
+├── 1/
+├── 2/
+├── ...
+└── 1000/
 ```
 
-Run all images in the subset:
+## Run Evaluation
 
 ```sh
-build/cpu/dynvit-eval \
+build/dynvit-eval \
   models/dynamic-vit_384_r0.7-f32.gguf \
   ILSVRC2012_img_val_subset
 ```
 
-The evaluator decodes and preprocesses each image, runs the model on the CPU,
-and prints progress every 100 successfully evaluated images. Final output gives
-the image count, top-1 accuracy, and top-5 accuracy. Failed image preprocessing
-or inference calls are reported and skipped; check that the final count is
-5,000 when evaluating the full supplied subset.
+The evaluator prints running top-1 and top-5 accuracy every 100 images and
+reports final accuracy after the dataset has been processed.
 
-To also save the output in zsh or bash:
+## Model
 
-```sh
-set -o pipefail
-build/cpu/dynvit-eval \
-  models/dynamic-vit_384_r0.7-f32.gguf \
-  ILSVRC2012_img_val_subset 2>&1 | tee build/eval-results.txt
+This implementation targets DynamicViT-DeiT-S/0.7:
+
+- Input: 224 × 224 RGB
+- Embedding dimension: 384
+- Transformer blocks: 12
+- Attention heads: 6
+- MLP dimension: 1536
+- Dynamic token pruning stages: 3
+- ImageNet classes: 1000
+
+Inference uses the DynamicViT token schedule as per the official paper:
+
+```text
+197 -> 138 -> 97 -> 68 tokens
 ```
 
-Output through `tee` can be buffered, so progress may appear in bursts. Run
-without the pipe to see terminal progress sooner. Press Ctrl+C to stop a run;
-an interrupted run does not produce final accuracy results.
-
-## Scope
-
-The current inference graph targets this specific model: 224×224 RGB inputs,
-384 embedding dimensions, 12 transformer blocks, and three token-pruning stages.
-Enabling a GPU build option alone does not switch the evaluator from its CPU
-backend. For the separate PyTorch correctness tests, see [tests/README.md](tests/README.md).
+All model computation is executed through GGML on the CPU.
