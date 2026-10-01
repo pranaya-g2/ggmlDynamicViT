@@ -4,7 +4,7 @@ C++ CPU inference for DynamicViT-DeiT-S/0.7 using GGML.
 
 The implementation includes GGUF model loading, ImageNet preprocessing,
 Vision Transformer blocks, DynamicViT token pruning, and top-1/top-5
-ImageNet evaluation. The implementation is validated against the official python implementation by Rao et. al (authors of DViT), and results matched.
+ImageNet evaluation. The implementation is validated against the official python implementation by Rao et. al (authors of DViT), and results matched. I trained on a subset of the validation set: https://github.com/ndb796/Small-ImageNet-Validation-Dataset-1000-Classes which has 5000 images. On mac, I ran my ggml version on 2500 images (273 seconds on a sample run) and the classification accurarcy matched up to the Pytorch implementation of the same dataset, though the pytorch version was faster (50 seconds). This is expected since the ggml overhead of my implementation. It creates and frees a graph, scheduler, and working buffers for each of the four inference stages. That adds allocation and scheduling overhead. Another possible reason would be that token features and predictor scores are copied into C++ vectors, pruned, and uploaded into the next graph. I also ran it on only 2 threads and disabled the BLAS ggml backend. I am planning on further optimizing as per the TODO at the end. 
 
 ## Setup
 
