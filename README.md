@@ -85,3 +85,11 @@ Inference uses the DynamicViT token schedule as per the official paper:
 ```
 
 All model computation is executed through GGML on the CPU.
+
+## TODO
+
+The current implementation establishes a functional GGML baseline that reproduces the classification accuracy of the original PyTorch implementation. The repo is actively changing to optimize the inference path for lower latency and better CPU efficiency:
+
+- [ ] Profile DynamicViT inference to identify CPU bottlenecks
+- [ ] Implement fused kernels for DynamicViT-specific compute patterns
+- [ ] Optimize token compaction/gather and pruning overhead
